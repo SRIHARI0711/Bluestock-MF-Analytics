@@ -1,0 +1,11 @@
+file_name,rows,columns,missing_cells,duplicate_rows,status
+01_fund_master.csv,40,15,0,0,loaded
+02_nav_history.csv,46000,3,0,0,loaded
+03_aum_by_fund_house.csv,90,5,0,0,loaded
+04_monthly_sip_inflows.csv,48,6,12,0,loaded
+05_category_inflows.csv,144,3,0,0,loaded
+06_industry_folio_count.csv,21,6,0,0,loaded
+07_scheme_performance.csv,40,19,0,0,loaded
+08_investor_transactions.csv,32778,13,0,0,loaded
+09_portfolio_holdings.csv,322,8,0,0,loaded
+10_benchmark_indices.csv,8050,3,0,0,loaded

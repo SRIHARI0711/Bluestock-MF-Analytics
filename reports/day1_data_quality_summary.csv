@@ -1,0 +1,13 @@
+Metric,Value
+Fund master rows,40
+Fund houses,10
+Unique fund-master scheme codes,40
+NAV history rows,46000
+Unique NAV scheme codes,40
+Scheme codes matched,40
+Fund-master codes missing from NAV,0
+NAV missing cells,0
+NAV duplicate rows,0
+SIP dataset rows,48
+SIP missing cells,12
+SIP rows containing missing values,12
