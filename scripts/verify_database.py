@@ -27,6 +27,7 @@ with sqlite3.connect(db_path) as conn:
         "fact_folio_count": 21,
         "fact_portfolio_holdings": 322,
         "fact_benchmark_indices": 8050,
+        "fact_nav_daily_calendar": 64320,
     }
 
     for table, count in expected.items():
