@@ -1,346 +1,232 @@
-
 from pathlib import Path
+import os
 import sqlite3
-import pandas as pd
-from sqlalchemy import create_engine, event, text
 
-# --------------------------------------------------
-# 1. Paths
-# --------------------------------------------------
+import pandas as pd
+from sqlalchemy import create_engine
+
 PROJECT_DIR = Path(__file__).resolve().parent.parent
 DATA_DIR = PROJECT_DIR / "data" / "processed"
 SCHEMA_FILE = PROJECT_DIR / "sql" / "schema.sql"
 DB_FILE = PROJECT_DIR / "bluestock_mf.db"
-
-if not SCHEMA_FILE.exists():
-    raise FileNotFoundError(f"Schema not found: {SCHEMA_FILE}")
-
-required_files = [
-    "clean_fund_master.csv",
-    "clean_nav_history.csv",
-    "clean_aum_by_fund_house.csv",
-    "clean_investor_transactions.csv",
-    "clean_scheme_performance.csv",
-]
-
-for filename in required_files:
-    if not (DATA_DIR / filename).exists():
-        raise FileNotFoundError(f"Missing processed file: {filename}")
-
-
-# --------------------------------------------------
-# 2. Read cleaned CSVs
-# --------------------------------------------------
-funds = pd.read_csv(DATA_DIR / "clean_fund_master.csv")
-nav = pd.read_csv(DATA_DIR / "clean_nav_history.csv")
-aum = pd.read_csv(DATA_DIR / "clean_aum_by_fund_house.csv")
-transactions = pd.read_csv(
-    DATA_DIR / "clean_investor_transactions.csv"
-)
-performance = pd.read_csv(
-    DATA_DIR / "clean_scheme_performance.csv"
-)
-
-print("Source row counts:")
-for name, df in [
-    ("dim_fund source", funds),
-    ("fact_nav source", nav),
-    ("fact_aum source", aum),
-    ("fact_transactions source", transactions),
-    ("fact_performance source", performance),
-]:
-    print(f"{name}: {len(df):,}")
-
-
-# --------------------------------------------------
-# 3. Standardise join keys
-# --------------------------------------------------
-def normalise_code(series):
-    return series.astype("string").str.strip()
-
-
-for df in [funds, nav, transactions, performance]:
-    df["amfi_code"] = normalise_code(df["amfi_code"])
-
-# Fund master must have unique AMFI codes.
-if funds["amfi_code"].duplicated().any():
-    raise ValueError("Duplicate AMFI codes in fund master.")
-
-fund_keys = set(funds["amfi_code"].dropna())
-
-# Check foreign-key references before loading.
-for name, df in [
-    ("NAV", nav),
-    ("Transactions", transactions),
-    ("Performance", performance),
-]:
-    unknown = set(df["amfi_code"].dropna()) - fund_keys
-
-    if unknown:
-        raise ValueError(
-            f"{name} contains AMFI codes absent from fund master. "
-            f"Examples: {list(unknown)[:10]}"
-        )
-
-print("\nAll NAV, transaction and performance fund codes match.")
-
-
-# --------------------------------------------------
-# 4. Build date dimension from actual dates
-# --------------------------------------------------
-nav["date"] = pd.to_datetime(nav["date"], errors="raise")
-transactions["transaction_date"] = pd.to_datetime(
-    transactions["transaction_date"], errors="raise"
-)
-aum["date"] = pd.to_datetime(aum["date"], errors="raise")
-
-all_dates = pd.concat(
-    [
-        nav["date"],
-        transactions["transaction_date"],
-        aum["date"],
-    ],
-    ignore_index=True,
-).dropna().drop_duplicates().sort_values()
-
-dates = pd.DataFrame({"full_date": all_dates})
-
-dates["date_key"] = dates["full_date"].dt.strftime("%Y%m%d").astype(int)
-dates["year"] = dates["full_date"].dt.year
-dates["month"] = dates["full_date"].dt.month
-dates["quarter"] = dates["full_date"].dt.quarter
-dates["month_name"] = dates["full_date"].dt.strftime("%B")
-dates["year_month"] = dates["full_date"].dt.strftime("%Y-%m")
-dates["full_date"] = dates["full_date"].dt.strftime("%Y-%m-%d")
-
-print("Unique dates in dim_date:", len(dates))
-
-
-# --------------------------------------------------
-# 5. Create a fresh database from schema.sql
-# --------------------------------------------------
-# Re-running this script recreates the database.
-# Close any SQLite viewer before running it again.
-if DB_FILE.exists():
-    DB_FILE.unlink()
-
-with sqlite3.connect(DB_FILE) as connection:
-    connection.executescript(SCHEMA_FILE.read_text(encoding="utf-8"))
-
-engine = create_engine(f"sqlite:///{DB_FILE.as_posix()}")
-
-# Enable SQLite foreign-key enforcement for SQLAlchemy connections.
-@event.listens_for(engine, "connect")
-def enable_foreign_keys(dbapi_connection, connection_record):
-    cursor = dbapi_connection.cursor()
-    cursor.execute("PRAGMA foreign_keys=ON")
-    cursor.close()
-
-
-# --------------------------------------------------
-# 6. Load dim_fund
-# --------------------------------------------------
-fund_cols = [
-    "amfi_code", "fund_house", "scheme_name", "category",
-    "sub_category", "plan", "launch_date", "benchmark",
-    "expense_ratio_pct", "exit_load_pct", "min_sip_amount",
-    "min_lumpsum_amount", "fund_manager", "risk_category",
-    "sebi_category_code",
-]
-
-dim_fund = funds[fund_cols].copy().reset_index(drop=True)
-dim_fund.insert(0, "fund_key", range(1, len(dim_fund) + 1))
-
-# Convert missing optional CSV values into SQL NULLs.
-dim_fund = dim_fund.astype(object).where(pd.notna(dim_fund), None)
-
-dim_fund.to_sql(
-    "dim_fund", engine, if_exists="append", index=False
-)
-
-fund_lookup = dict(
-    zip(dim_fund["amfi_code"], dim_fund["fund_key"])
-)
-
-
-# --------------------------------------------------
-# 7. Load dim_date
-# --------------------------------------------------
-dates.to_sql(
-    "dim_date", engine, if_exists="append", index=False
-)
-
-date_lookup = dict(
-    zip(dates["full_date"], dates["date_key"])
-)
-
-
-# --------------------------------------------------
-# 8. Load fact_nav
-# --------------------------------------------------
-nav["date_text"] = nav["date"].dt.strftime("%Y-%m-%d")
-
-fact_nav = pd.DataFrame({
-    "fund_key": nav["amfi_code"].map(fund_lookup),
-    "date_key": nav["date_text"].map(date_lookup),
-    "nav": pd.to_numeric(nav["nav"], errors="raise"),
-})
-
-if fact_nav[["fund_key", "date_key"]].isna().any().any():
-    raise ValueError("Unresolved NAV fund/date keys.")
-
-fact_nav.to_sql(
-    "fact_nav", engine, if_exists="append", index=False
-)
-
-
-# --------------------------------------------------
-# 9. Load fact_transactions
-# --------------------------------------------------
-transactions["date_text"] = (
-    transactions["transaction_date"].dt.strftime("%Y-%m-%d")
-)
-
-transaction_cols = [
-    "investor_id", "amfi_code", "date_text",
-    "transaction_type", "amount_inr", "state", "city",
-    "city_tier", "age_group", "gender", "annual_income_lakh",
-    "payment_mode", "kyc_status",
-]
-
-fact_transactions = transactions[transaction_cols].copy()
-
-fact_transactions = fact_transactions.rename(columns={
-    "date_text": "date_text"
-})
-
-fact_transactions.insert(
-    0, "date_key",
-    fact_transactions["date_text"].map(date_lookup)
-)
-fact_transactions.insert(
-    0, "fund_key",
-    fact_transactions["amfi_code"].map(fund_lookup)
-)
-
-fact_transactions = fact_transactions.drop(
-    columns=["amfi_code", "date_text"]
-)
-
-fact_transactions = fact_transactions.rename(columns={
-    "date_key": "date_key"
-})
-
-fact_transactions = fact_transactions[[
-    "investor_id", "fund_key", "date_key",
-    "transaction_type", "amount_inr", "state", "city",
-    "city_tier", "age_group", "gender", "annual_income_lakh",
-    "payment_mode", "kyc_status",
-]]
-
-fact_transactions = fact_transactions.astype(object).where(
-    pd.notna(fact_transactions), None
-)
-
-fact_transactions.to_sql(
-    "fact_transactions", engine, if_exists="append", index=False
-)
-
-
-# --------------------------------------------------
-# 10. Load fact_performance
-# --------------------------------------------------
-performance_cols = [
-    "return_1yr_pct", "return_3yr_pct", "return_5yr_pct",
-    "benchmark_3yr_pct", "alpha", "beta", "sharpe_ratio",
-    "sortino_ratio", "std_dev_ann_pct", "max_drawdown_pct",
-    "aum_crore", "expense_ratio_pct", "morningstar_rating",
-    "risk_grade",
-]
-
-fact_performance = performance[
-    ["amfi_code"] + performance_cols
-].copy()
-
-fact_performance.insert(
-    0, "fund_key",
-    fact_performance["amfi_code"].map(fund_lookup)
-)
-fact_performance = fact_performance.drop(columns=["amfi_code"])
-
-fact_performance = fact_performance.astype(object).where(
-    pd.notna(fact_performance), None
-)
-
-fact_performance.to_sql(
-    "fact_performance", engine, if_exists="append", index=False
-)
-
-
-# --------------------------------------------------
-# 11. Load fact_aum
-# --------------------------------------------------
-fact_aum = aum.copy()
-fact_aum["date_text"] = fact_aum["date"].dt.strftime("%Y-%m-%d")
-
-fact_aum["date_key"] = fact_aum["date_text"].map(date_lookup)
-
-fact_aum = fact_aum[[
-    "date_key", "fund_house",
-    "aum_lakh_crore", "aum_crore", "num_schemes"
-]]
-
-fact_aum = fact_aum.astype(object).where(
-    pd.notna(fact_aum), None
-)
-
-fact_aum.to_sql(
-    "fact_aum", engine, if_exists="append", index=False
-)
-
-
-# --------------------------------------------------
-# 12. Verify row counts and foreign keys
-# --------------------------------------------------
-expected = {
-    "dim_fund": len(funds),
-    "dim_date": len(dates),
-    "fact_nav": len(nav),
-    "fact_transactions": len(transactions),
-    "fact_performance": len(performance),
-    "fact_aum": len(aum),
+TEMP_DB_FILE = PROJECT_DIR / "bluestock_mf_build.tmp.db"
+
+DATASETS = {
+    "clean_fund_master.csv": "dim_fund",
+    "clean_nav_history.csv": "fact_nav",
+    "clean_investor_transactions.csv": "fact_transactions",
+    "clean_scheme_performance.csv": "fact_performance",
+    "clean_aum_by_fund_house.csv": "fact_aum",
+    "clean_monthly_sip_inflows.csv": "fact_sip_inflows",
+    "clean_category_inflows.csv": "fact_category_inflows",
+    "clean_industry_folio_count.csv": "fact_folio_count",
+    "clean_portfolio_holdings.csv": "fact_portfolio_holdings",
+    "clean_benchmark_indices.csv": "fact_benchmark_indices",
 }
 
-print("\nDatabase verification:")
-with engine.connect() as connection:
-    for table, expected_count in expected.items():
-        actual_count = connection.execute(
-            text(f"SELECT COUNT(*) FROM {table}")
-        ).scalar_one()
 
-        print(
-            f"{table}: {actual_count:,} rows "
-            f"(expected {expected_count:,})"
-        )
+def normalize_code(series):
+    """Normalize AMFI codes whether pandas reads them as integers or strings."""
+    return series.astype("string").str.strip().str.replace(r"\.0$", "", regex=True)
 
-        if actual_count != expected_count:
-            raise ValueError(
-                f"Row count mismatch for {table}: "
-                f"{actual_count} != {expected_count}"
+
+def iso_dates(series):
+    """Convert parseable dates to ISO YYYY-MM-DD strings."""
+    parsed = pd.to_datetime(series, errors="coerce")
+    return parsed.dt.strftime("%Y-%m-%d")
+
+
+def main():
+    if not SCHEMA_FILE.exists():
+        raise FileNotFoundError(f"Schema not found: {SCHEMA_FILE}")
+
+    # Read every CSV first; the current database is not touched if an input is missing.
+    source = {}
+    for filename, table in DATASETS.items():
+        path = DATA_DIR / filename
+        if not path.exists():
+            raise FileNotFoundError(f"Missing cleaned CSV: {path}")
+        source[table] = pd.read_csv(path)
+
+    # Build in a separate temporary database so the current DB survives failures.
+    if TEMP_DB_FILE.exists():
+        TEMP_DB_FILE.unlink()
+
+    with sqlite3.connect(TEMP_DB_FILE) as raw_conn:
+        raw_conn.execute("PRAGMA foreign_keys = ON")
+        raw_conn.executescript(SCHEMA_FILE.read_text(encoding="utf-8"))
+
+    engine = create_engine(f"sqlite:///{TEMP_DB_FILE.as_posix()}")
+
+    try:
+        with engine.begin() as conn:
+            # 1) Dimension: fund master. SQLite generates fund_key.
+            funds = source["dim_fund"].copy()
+            funds["amfi_code"] = normalize_code(funds["amfi_code"])
+            funds.to_sql("dim_fund", conn, if_exists="append", index=False)
+
+            # Build a complete date dimension from all datasets with date fields.
+            date_values = set()
+            date_columns = {
+                "fact_nav": "date",
+                "fact_transactions": "transaction_date",
+                "fact_aum": "date",
+                "fact_sip_inflows": "month",
+                "fact_category_inflows": "month",
+                "fact_folio_count": "month",
+                "fact_portfolio_holdings": "portfolio_date",
+                "fact_benchmark_indices": "date",
+            }
+            for table, column in date_columns.items():
+                df = source[table]
+                if column not in df.columns:
+                    continue
+                parsed = pd.to_datetime(df[column], errors="coerce")
+                date_values.update(parsed.dropna().dt.strftime("%Y-%m-%d"))
+
+            dates = pd.DataFrame({"full_date": sorted(date_values)})
+            parsed_dates = pd.to_datetime(dates["full_date"])
+            dates["year"] = parsed_dates.dt.year
+            dates["month"] = parsed_dates.dt.month
+            dates["quarter"] = parsed_dates.dt.quarter
+            dates["month_name"] = parsed_dates.dt.month_name()
+            dates["year_month"] = parsed_dates.dt.strftime("%Y-%m")
+            dates.to_sql("dim_date", conn, if_exists="append", index=False)
+
+            fund_keys = pd.read_sql(
+                "SELECT fund_key, amfi_code FROM dim_fund", conn
+            )
+            fund_keys["amfi_code"] = normalize_code(fund_keys["amfi_code"])
+            date_keys = pd.read_sql(
+                "SELECT date_key, full_date FROM dim_date", conn
             )
 
-    foreign_key_errors = connection.exec_driver_sql(
-        "PRAGMA foreign_key_check"
-    ).fetchall()
+            # 2) NAV: map AMFI code and date to surrogate keys.
+            nav = source["fact_nav"].copy()
+            nav["amfi_code"] = normalize_code(nav["amfi_code"])
+            nav["date"] = iso_dates(nav["date"])
+            nav = nav.merge(fund_keys, on="amfi_code", how="left", validate="many_to_one")
+            nav = nav.merge(
+                date_keys, left_on="date", right_on="full_date",
+                how="left", validate="many_to_one"
+            )
+            if nav["fund_key"].isna().any() or nav["date_key"].isna().any():
+                raise ValueError("NAV data has an unmatched fund code or date.")
+            nav[["fund_key", "date_key", "nav"]].to_sql(
+                "fact_nav", conn, if_exists="append", index=False
+            )
 
-    if foreign_key_errors:
-        raise ValueError(
-            f"Foreign-key violations: {foreign_key_errors[:10]}"
-        )
+            # 3) Transactions: map AMFI code and transaction date.
+            tx = source["fact_transactions"].copy()
+            tx["amfi_code"] = normalize_code(tx["amfi_code"])
+            tx["transaction_date"] = iso_dates(tx["transaction_date"])
+            tx = tx.merge(fund_keys, on="amfi_code", how="left", validate="many_to_one")
+            tx = tx.merge(
+                date_keys, left_on="transaction_date", right_on="full_date",
+                how="left", validate="many_to_one"
+            )
+            if tx["fund_key"].isna().any() or tx["date_key"].isna().any():
+                raise ValueError("Transactions have an unmatched fund code or date.")
+            tx_out = tx[[
+                "investor_id", "fund_key", "date_key", "transaction_type",
+                "amount_inr", "state", "city", "city_tier", "age_group",
+                "gender", "annual_income_lakh", "payment_mode", "kyc_status"
+            ]]
+            tx_out.to_sql("fact_transactions", conn, if_exists="append", index=False)
 
-    print("Foreign-key check: PASSED")
+            # 4) Performance: one row per fund, mapped to fund_key.
+            perf = source["fact_performance"].copy()
+            perf["amfi_code"] = normalize_code(perf["amfi_code"])
+            perf = perf.merge(fund_keys, on="amfi_code", how="left", validate="one_to_one")
+            if perf["fund_key"].isna().any():
+                raise ValueError("Performance data has an unmatched fund code.")
+            perf_columns = [
+                "fund_key", "return_1yr_pct", "return_3yr_pct", "return_5yr_pct",
+                "benchmark_3yr_pct", "alpha", "beta", "sharpe_ratio",
+                "sortino_ratio", "std_dev_ann_pct", "max_drawdown_pct",
+                "aum_crore", "expense_ratio_pct", "morningstar_rating", "risk_grade"
+            ]
+            perf[perf_columns].to_sql(
+                "fact_performance", conn, if_exists="append", index=False
+            )
 
-print("\nDatabase created successfully:")
-print(DB_FILE)
+            # 5) Fund-house AUM: map date to date_key.
+            aum = source["fact_aum"].copy()
+            aum["date"] = iso_dates(aum["date"])
+            aum = aum.merge(
+                date_keys, left_on="date", right_on="full_date",
+                how="left", validate="many_to_one"
+            )
+            if aum["date_key"].isna().any():
+                raise ValueError("AUM data has an unmatched date.")
+            aum[[
+                "date_key", "fund_house", "aum_lakh_crore",
+                "aum_crore", "num_schemes"
+            ]].to_sql("fact_aum", conn, if_exists="append", index=False)
 
-engine.dispose()
+            # 6-10) Supplementary datasets retain their source columns.
+            sip = source["fact_sip_inflows"].copy()
+            sip["month"] = sip["month"].astype(str)
+            sip.to_sql("fact_sip_inflows", conn, if_exists="append", index=False)
+
+            category = source["fact_category_inflows"].copy()
+            category["month"] = category["month"].astype(str)
+            category.to_sql(
+                "fact_category_inflows", conn, if_exists="append", index=False
+            )
+
+            folios = source["fact_folio_count"].copy()
+            folios["month"] = folios["month"].astype(str)
+            folios.to_sql("fact_folio_count", conn, if_exists="append", index=False)
+
+            holdings = source["fact_portfolio_holdings"].copy()
+            holdings["amfi_code"] = normalize_code(holdings["amfi_code"])
+            holdings["portfolio_date"] = iso_dates(holdings["portfolio_date"])
+            holdings.to_sql(
+                "fact_portfolio_holdings", conn, if_exists="append", index=False
+            )
+
+            benchmark = source["fact_benchmark_indices"].copy()
+            benchmark["date"] = iso_dates(benchmark["date"])
+            benchmark.to_sql(
+                "fact_benchmark_indices", conn, if_exists="append", index=False
+            )
+
+        # Verify counts and foreign keys on the temporary database.
+        with sqlite3.connect(TEMP_DB_FILE) as check_conn:
+            check_conn.execute("PRAGMA foreign_keys = ON")
+            violations = check_conn.execute("PRAGMA foreign_key_check").fetchall()
+
+            print("\nDATABASE ROW COUNTS")
+            count_errors = []
+            for table, df in source.items():
+                actual = check_conn.execute(
+                    f'SELECT COUNT(*) FROM "{table}"'
+                ).fetchone()[0]
+                expected = len(df)
+                print(f"{table}: expected {expected:,}, actual {actual:,}")
+                if actual != expected:
+                    count_errors.append((table, expected, actual))
+
+            if violations:
+                raise RuntimeError(f"Foreign-key violations: {violations}")
+            if count_errors:
+                raise RuntimeError(f"Row-count mismatches: {count_errors}")
+
+            print("Foreign key violations: []")
+            print("All ten dataset row counts match.")
+
+        engine.dispose()
+        # Replace the original database only after successful loading and checks.
+        os.replace(TEMP_DB_FILE, DB_FILE)
+        print(f"\nDatabase successfully rebuilt: {DB_FILE}")
+
+    except Exception:
+        engine.dispose()
+        if TEMP_DB_FILE.exists():
+            TEMP_DB_FILE.unlink()
+        raise
+
+
+if __name__ == "__main__":
+    main()

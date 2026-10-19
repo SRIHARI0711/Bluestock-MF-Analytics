@@ -109,3 +109,57 @@ CREATE INDEX IF NOT EXISTS idx_transactions_type
 
 CREATE INDEX IF NOT EXISTS idx_aum_date
     ON fact_aum (date_key);
+
+
+-- 7. Monthly SIP inflows
+CREATE TABLE IF NOT EXISTS fact_sip_inflows (
+    sip_inflow_key INTEGER PRIMARY KEY AUTOINCREMENT,
+    month TEXT NOT NULL UNIQUE,
+    sip_inflow_crore REAL,
+    active_sip_accounts_crore REAL,
+    new_sip_accounts_lakh REAL,
+    sip_aum_lakh_crore REAL,
+    yoy_growth_pct REAL
+);
+
+-- 8. Category inflows
+CREATE TABLE IF NOT EXISTS fact_category_inflows (
+    category_inflow_key INTEGER PRIMARY KEY AUTOINCREMENT,
+    month TEXT NOT NULL,
+    category TEXT NOT NULL,
+    net_inflow_crore REAL,
+    UNIQUE (month, category)
+);
+
+-- 9. Industry folio counts
+CREATE TABLE IF NOT EXISTS fact_folio_count (
+    folio_count_key INTEGER PRIMARY KEY AUTOINCREMENT,
+    month TEXT NOT NULL UNIQUE,
+    total_folios_crore REAL,
+    equity_folios_crore REAL,
+    debt_folios_crore REAL,
+    hybrid_folios_crore REAL,
+    others_folios_crore REAL
+);
+
+-- 10. Portfolio holdings
+CREATE TABLE IF NOT EXISTS fact_portfolio_holdings (
+    holding_key INTEGER PRIMARY KEY AUTOINCREMENT,
+    amfi_code TEXT NOT NULL,
+    stock_symbol TEXT,
+    stock_name TEXT,
+    sector TEXT,
+    weight_pct REAL,
+    market_value_cr REAL,
+    current_price_inr REAL,
+    portfolio_date TEXT
+);
+
+-- 11. Benchmark indices
+CREATE TABLE IF NOT EXISTS fact_benchmark_indices (
+    benchmark_key INTEGER PRIMARY KEY AUTOINCREMENT,
+    date TEXT NOT NULL,
+    index_name TEXT NOT NULL,
+    close_value REAL,
+    UNIQUE (date, index_name)
+);
