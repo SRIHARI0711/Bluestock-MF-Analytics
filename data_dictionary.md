@@ -192,4 +192,27 @@ They can be incorporated into an expanded schema if required.
   individual-scheme AUM.
 - The database contains the source observations and does not
   automatically generate NAV observations for holidays or weekends.
-  
+
+
+## Daily NAV Calendar — `data/processed/daily_nav_calendar.csv`
+
+**Purpose:** Provides a calendar-day NAV series for each fund, carrying the most recent observed NAV forward to dates without an observation.
+
+| Column | Type | Definition |
+|---|---|---|
+| `amfi_code` | Integer or string | Identifier of the mutual fund scheme |
+| `date` | Date | Calendar date in the fund's observed date range |
+| `nav` | Float | Actual observed NAV or the most recent prior NAV carried forward |
+| `is_actual_nav` | Boolean | `True` when the date has an actual source observation; `False` when NAV was carried forward |
+
+**Validation results**
+- Source observations: 46,000
+- Daily calendar rows: 64,320
+- Actual observations: 46,000
+- Carried-forward values: 18,320
+- Funds: 40
+- Missing NAV values: 0
+- Duplicate fund-date pairs: 0
+- Each fund begins with an actual observation.
+
+**Important note:** Carried-forward values are derived calendar-series values, not newly published NAVs. Use the original `clean_nav_history.csv` when analysis requires actual observed NAV records.
