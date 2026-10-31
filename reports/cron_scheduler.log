@@ -1,0 +1,10 @@
+2026-10-31 00:06:58,282 [INFO] [CRON-B1] Executing immediate manual test run of scheduled NAV ETL job...
+2026-10-31 00:06:58,282 [INFO] [CRON-B1] ======================================================================
+2026-10-31 00:06:58,283 [INFO] [CRON-B1] Triggering Weekday Scheduled NAV Fetch & Metrics Update: 2026-10-31 00:06:58
+2026-10-31 00:06:58,290 [INFO] [CRON-B1] Target Source: https://api.mfapi.in/mf/
+2026-10-31 00:06:58,294 [INFO] [CRON-B1] Step 1/2: Fetching live NAV feeds...
+2026-10-31 00:07:08,241 [INFO] [CRON-B1] Live NAV ingestion completed successfully.
+2026-10-31 00:07:08,241 [INFO] [CRON-B1] Step 2/2: Updating fund performance scorecards & risk metrics...
+2026-10-31 00:07:08,662 [INFO] [CRON-B1] Metrics calculation completed successfully.
+2026-10-31 00:07:08,662 [INFO] [CRON-B1] CRON JOB FINISHED: NAV and metrics successfully updated at 00:07:08
+2026-10-31 00:07:08,662 [INFO] [CRON-B1] ======================================================================

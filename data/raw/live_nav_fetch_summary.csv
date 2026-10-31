@@ -1,7 +1,7 @@
-scheme_code,requested_label,actual_scheme_name,fund_house,nav_records,status
-125497,HDFC Top 100 Direct,SBI SMALL CAP FUND - Direct Plan - Growth,SBI Mutual Fund,3182,SUCCESS
-119551,SBI Bluechip,Aditya Birla Sun Life Banking & PSU Debt Fund - Direct Plan - IDCW-Re-investment,Aditya Birla Sun Life Mutual Fund,3326,SUCCESS
-120503,ICICI Bluechip,Axis ELSS- Tax Saver Fund - Direct Plan - Growth Option,Axis Mutual Fund,3398,SUCCESS
-118632,Nippon Large Cap,Nippon India Large Cap Fund - Direct Plan - Growth Option,Nippon India Mutual Fund,3389,SUCCESS
-119092,Axis Bluechip,HDFC Money Market Fund - Direct Plan - Growth Option,HDFC Mutual Fund,3655,SUCCESS
-120841,Kotak Bluechip,Quant Mid Cap Fund - Direct Plan - Growth Option,quant Mutual Fund,3392,SUCCESS
+scheme_code,scheme_name,fund_house,scheme_type,scheme_category,total_records,latest_date,latest_nav,oldest_date,oldest_nav,status
+125497,SBI SMALL CAP FUND - Direct Plan - Growth,SBI Mutual Fund,Open Ended Schemes,Equity Scheme - Small Cap Fund,3195,29-10-2026,200.18460,18-11-2013,13.08940,SUCCESS
+119551,Aditya Birla Sun Life Banking & PSU Debt Fund - Direct Plan - IDCW-Re-investment,Aditya Birla Sun Life Mutual Fund,Open Ended Schemes,Income/Debt Oriented Schemes - Banking and PSU Debt Fund,3339,29-10-2026,106.62690,02-01-2013,103.00590,SUCCESS
+120503,Axis ELSS- Tax Saver Fund - Direct Plan - Growth Option,Axis Mutual Fund,Open Ended Schemes,Equity Schemes - ELSS- Tax Saver Fund,3411,29-10-2026,106.62540,02-01-2013,15.02530,SUCCESS
+118632,Nippon India Large Cap Fund - Direct Plan - Growth Option,Nippon India Mutual Fund,Open Ended Schemes,Equity Scheme - Large Cap Fund,3402,29-10-2026,95.77330,02-01-2013,14.69670,SUCCESS
+119092,HDFC Money Market Fund - Direct Plan - Growth Option,HDFC Mutual Fund,Open Ended Schemes,Debt Scheme - Money Market Fund,3668,29-10-2026,6340.51540,31-12-2012,23.99200,SUCCESS
+120841,Quant Mid Cap Fund - Direct Plan - Growth Option,quant Mutual Fund,Open Ended Schemes,Equity Scheme - Mid Cap Fund,3405,29-10-2026,237.20950,07-01-2013,30.60760,SUCCESS

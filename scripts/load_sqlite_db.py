@@ -1,5 +1,6 @@
 from pathlib import Path
 import os
+import shutil
 import sqlite3
 
 import pandas as pd
@@ -217,14 +218,44 @@ def main():
             print("All ten dataset row counts match.")
 
         engine.dispose()
-        # Replace the original database only after successful loading and checks.
-        os.replace(TEMP_DB_FILE, DB_FILE)
+        del engine
+        import gc, time
+        gc.collect()
+        time.sleep(0.5)
+
+        # Replace or copy to DB_FILE on Windows safely
+        for attempt in range(5):
+            try:
+                if DB_FILE.exists():
+                    try:
+                        DB_FILE.unlink()
+                    except Exception:
+                        pass
+                shutil.copy2(TEMP_DB_FILE, DB_FILE)
+                break
+            except Exception as e:
+                time.sleep(0.5)
+                gc.collect()
+                if attempt == 4:
+                    raise e
+        
+        try:
+            TEMP_DB_FILE.unlink()
+        except Exception:
+            pass
+
         print(f"\nDatabase successfully rebuilt: {DB_FILE}")
 
     except Exception:
         engine.dispose()
+        del engine
+        import gc
+        gc.collect()
         if TEMP_DB_FILE.exists():
-            TEMP_DB_FILE.unlink()
+            try:
+                TEMP_DB_FILE.unlink()
+            except Exception:
+                pass
         raise
 
 

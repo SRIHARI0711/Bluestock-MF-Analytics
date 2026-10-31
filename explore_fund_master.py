@@ -1,3 +1,10 @@
+#!/usr/bin/env python3
+"""
+Bluestock Mutual Fund Analytics — Fund Master Explorer
+======================================================
+Inspects schema and records of 01_fund_master.csv, searching for
+core fund families (HDFC, SBI, ICICI, Nippon, Axis, Kotak).
+"""
 
 from pathlib import Path
 import pandas as pd

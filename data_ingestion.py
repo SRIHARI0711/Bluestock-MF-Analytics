@@ -1,3 +1,10 @@
+#!/usr/bin/env python3
+"""
+Bluestock Mutual Fund Analytics — Day 1 Data Ingestion Inspector
+================================================================
+Scans and profiles all raw CSV files in data/raw/, inspecting shapes,
+data types, null cells, and duplicate rows, generating day1_dataset_inspection.csv.
+"""
 
 from pathlib import Path
 import pandas as pd

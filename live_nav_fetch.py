@@ -1,3 +1,10 @@
+#!/usr/bin/env python3
+"""
+Bluestock Mutual Fund Analytics — Live NAV Fetcher & Ingestion
+=============================================================
+Fetches live daily NAV time-series for benchmark schemes from the public
+mfapi.in endpoint, saving raw JSON responses and parsed CSVs to data/raw/.
+"""
 
 from pathlib import Path
 import json
@@ -24,6 +31,7 @@ API_BASE = "https://api.mfapi.in/mf"
 
 
 def fetch_scheme(session, code, requested_name):
+    """Fetches full metadata and historical NAV records for a specific scheme code."""
     url = f"{API_BASE}/{code}"
 
     print(f"\nFetching code {code}: {requested_name}")

@@ -1,0 +1,50 @@
+2026-10-31 10:41:42,532 [INFO] Starting Bluestock Mutual Fund Analytics ETL Pipeline...
+2026-10-31 10:41:42,533 [INFO] === STAGE 1: RAW DATA INGESTION & VALIDATION ===
+2026-10-31 10:41:42,536 [INFO] All 10 required raw datasets validated successfully.
+2026-10-31 10:41:42,536 [INFO] === STAGE 2: DATA CLEANING & TRANSFORMATION ===
+2026-10-31 10:41:42,556 [INFO] Processed clean_fund_master.csv: 40 funds
+2026-10-31 10:41:42,774 [INFO] Processed clean_nav_history.csv: 46,000 records
+2026-10-31 10:41:42,774 [INFO] Generating daily NAV calendar with forward-fill for trading breaks...
+2026-10-31 10:41:43,041 [INFO] Processed daily_nav_calendar.csv: 64,320 total daily calendar records
+2026-10-31 10:41:43,341 [INFO] Processed clean_investor_transactions.csv: 32,778 records
+2026-10-31 10:41:43,349 [INFO] Processed clean_scheme_performance.csv: 40 schemes
+2026-10-31 10:41:43,357 [INFO] Processed clean_aum_by_fund_house.csv: 90 records
+2026-10-31 10:41:43,413 [INFO] All supplementary datasets standardized and saved to processed/.
+2026-10-31 10:41:43,420 [INFO] === STAGE 3: COMPUTE QUANTITATIVE METRICS ===
+2026-10-31 10:41:45,140 [INFO] Performance, VaR/CVaR, and Alpha/Beta metrics generated.
+2026-10-31 10:41:45,140 [INFO] === STAGE 4: BUILD SQLITE DATABASE ===
+2026-10-31 10:41:50,106 [INFO] Daily NAV calendar table successfully loaded.
+2026-10-31 10:41:50,115 [INFO] Database synchronized to C:\Users\sriha\OneDrive\Desktop\Bluestock-MF-Analytics\data\db\bluestock_mf.db and C:\Users\sriha\OneDrive\Desktop\Bluestock-MF-Analytics\bluestock_mf.db
+2026-10-31 10:41:50,115 [INFO] === STAGE 5: INTEGRITY CHECKS & SQL QUERY EXECUTION ===
+2026-10-31 10:41:50,538 [INFO] All analytical SQL queries executed and saved to reports/sql_results/.
+2026-10-31 10:41:50,538 [INFO] ======================================================================
+2026-10-31 10:41:50,538 [INFO] ETL PIPELINE COMPLETED SUCCESSFULLY WITH ZERO MANUAL STEPS!
+2026-10-31 10:41:50,539 [INFO] ======================================================================
+2026-10-31 10:41:50,833 [INFO] [SUCCESS] End-to-End ETL & Database Schema Migration completed in 9.81s
+2026-10-31 10:41:50,834 [INFO] ===========================================================================
+2026-10-31 10:41:50,834 [INFO] STAGE 3: ADVANCED QUANTITATIVE ANALYTICS & SIMULATIONS
+2026-10-31 10:41:50,834 [INFO] ===========================================================================
+2026-10-31 10:41:50,835 [INFO] --> [RUNNING] Markowitz Efficient Frontier & Monte Carlo Simulations (monte_carlo_and_frontier.py)...
+2026-10-31 10:42:03,087 [INFO] [SUCCESS] Markowitz Efficient Frontier & Monte Carlo Simulations completed in 12.25s
+2026-10-31 10:42:03,088 [INFO] --> [RUNNING] Value at Risk (VaR) & Conditional VaR Analysis (generate_var_cvar_report.py)...
+2026-10-31 10:42:04,485 [INFO] [SUCCESS] Value at Risk (VaR) & Conditional VaR Analysis completed in 1.40s
+2026-10-31 10:42:04,486 [INFO] ===========================================================================
+2026-10-31 10:42:04,486 [INFO] STAGE 4: EXECUTIVE DELIVERABLES GENERATION
+2026-10-31 10:42:04,486 [INFO] ===========================================================================
+2026-10-31 10:42:04,487 [INFO] --> [RUNNING] Comprehensive 19-Page PDF Executive Report (generate_final_report_pdf.py)...
+2026-10-31 10:42:12,643 [INFO] [SUCCESS] Comprehensive 19-Page PDF Executive Report completed in 8.16s
+2026-10-31 10:42:12,644 [INFO] --> [RUNNING] 12-Slide Executive Presentation Deck (PPTX) (generate_presentation_pptx.py)...
+2026-10-31 10:42:13,751 [INFO] [SUCCESS] 12-Slide Executive Presentation Deck (PPTX) completed in 1.11s
+2026-10-31 10:42:13,751 [INFO] ===========================================================================
+2026-10-31 10:42:13,751 [INFO] STAGE 5: SYSTEM INTEGRITY & DATABASE VERIFICATION
+2026-10-31 10:42:13,751 [INFO] ===========================================================================
+2026-10-31 10:42:13,752 [INFO] --> [RUNNING] SQLite Database Integrity & 10 Analytical Queries (verify_database.py)...
+2026-10-31 10:42:14,561 [INFO] [SUCCESS] SQLite Database Integrity & 10 Analytical Queries completed in 0.81s
+2026-10-31 10:42:14,562 [INFO] ###########################################################################
+2026-10-31 10:42:14,562 [INFO] [PIPELINE COMPLETE] All tasks completed successfully in 33.54s!
+2026-10-31 10:42:14,562 [INFO] Verified Deliverables:
+2026-10-31 10:42:14,562 [INFO]   • Final Report (PDF):        C:\Users\sriha\OneDrive\Desktop\Bluestock-MF-Analytics\Final_Report.pdf
+2026-10-31 10:42:14,562 [INFO]   • Presentation (PPTX):       C:\Users\sriha\OneDrive\Desktop\Bluestock-MF-Analytics\Bluestock_MF_Presentation.pptx
+2026-10-31 10:42:14,562 [INFO]   • SQLite Database:           C:\Users\sriha\OneDrive\Desktop\Bluestock-MF-Analytics\bluestock_mf.db
+2026-10-31 10:42:14,562 [INFO]   • Streamlit Web Dashboard:   C:\Users\sriha\OneDrive\Desktop\Bluestock-MF-Analytics\dashboard\streamlit_app.py
+2026-10-31 10:42:14,562 [INFO] ###########################################################################

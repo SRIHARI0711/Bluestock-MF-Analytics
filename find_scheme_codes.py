@@ -1,3 +1,9 @@
+#!/usr/bin/env python3
+"""
+Bluestock Mutual Fund Analytics — AMFI Scheme Code Finder
+=========================================================
+Queries mfapi.in search API to locate scheme codes and identifiers for marquee AMFI funds.
+"""
 
 from pathlib import Path
 import time
@@ -38,41 +44,32 @@ def main():
                 data = response.json()
 
                 if not isinstance(data, list):
-                    print("Unexpected API response:", data)
+                    print("  Invalid response payload.")
                     continue
 
-                matches = [
-                    item for item in data
-                    if "schemeCode" in item and "schemeName" in item
-                ]
+                print(f"  Found {len(data)} results.")
 
-                for item in matches:
-                    row = {
+                for item in data[:5]:
+                    code = item.get("schemeCode")
+                    name = item.get("schemeName")
+                    print(f"    {code} - {name}")
+
+                    results.append({
                         "search_term": term,
-                        "scheme_code": item["schemeCode"],
-                        "scheme_name": item["schemeName"],
-                    }
-                    results.append(row)
-                    print(
-                        f"  {row['scheme_code']} | "
-                        f"{row['scheme_name']}"
-                    )
+                        "scheme_code": code,
+                        "scheme_name": name,
+                    })
 
-                if not matches:
-                    print("  No matching schemes returned.")
-
-            except (requests.RequestException, ValueError) as error:
+            except Exception as error:
                 print(f"  Search failed: {error}")
 
-            time.sleep(1)
+            time.sleep(0.5)
 
     if results:
         df = pd.DataFrame(results)
-        output_path = RAW_DIR / "scheme_code_search_results.csv"
-        df.to_csv(output_path, index=False)
-        print(f"\nResults saved to: {output_path}")
-    else:
-        print("\nNo results collected. Check the API response.")
+        output = RAW_DIR / "candidate_schemes.csv"
+        df.to_csv(output, index=False)
+        print(f"\nSaved candidates to {output}")
 
 
 if __name__ == "__main__":

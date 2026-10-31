@@ -1,3 +1,10 @@
+#!/usr/bin/env python3
+"""
+Bluestock Mutual Fund Analytics — Raw Dataset Downloader
+=======================================================
+Downloads and validates the 10 canonical mutual fund datasets from the
+central repository into data/raw/ with chunked streaming and integrity checks.
+"""
 
 from pathlib import Path
 import requests
@@ -37,6 +44,7 @@ DATASETS = {
 
 
 def download_datasets():
+    """Stream downloads all 10 raw datasets into data/raw/."""
     success = 0
 
     with requests.Session() as session:
@@ -47,7 +55,6 @@ def download_datasets():
 
             try:
                 print(f"\nDownloading: {filename}")
-
                 response = session.get(
                     url,
                     timeout=60,

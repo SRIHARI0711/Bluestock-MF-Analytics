@@ -1,3 +1,10 @@
+#!/usr/bin/env python3
+"""
+Bluestock Mutual Fund Analytics — Day 1 Data Quality Summary Reporter
+====================================================================
+Cross-validates AMFI scheme codes between Fund Master, NAV History, and SIP datasets.
+Outputs summary metrics to reports/day1_data_quality_summary.csv.
+"""
 
 from pathlib import Path
 import pandas as pd
